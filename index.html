@@ -343,7 +343,7 @@ auth.onAuthStateChanged(async user=>{
   }
   document.getElementById('login-screen').style.display='none';
   document.getElementById('loading').style.display='flex';
-  document.getElementById('loading-msg').textContent='Verificando acceso…';
+  document.getElementById('loading-msg').textContent='Autenticado ✓ — leyendo base de datos…';
   currentUser=user;
 
   // Timeout si Firebase no responde (reglas bloqueando)
@@ -894,17 +894,26 @@ function renderCompras(){
         <div style="font-size:13px">Semana del <strong>${reg.semana}</strong> · ${reg.modulos.filter(m=>m.superficie>0).length} módulos · ${reg.asesor||''}</div>
         <div style="font-size:12px;color:#bbb;margin-top:2px">${compras.length} producto(s) agrupados por nombre.</div>
       </div>
-      <button class="btn-pdf" onclick="exportarPDF()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Exportar PDF
-      </button>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn-pdf" onclick="exportarPDF('download')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar PDF
+        </button>
+        <button class="btn-pdf" style="background:#0c447c" onclick="exportarPDF('tab')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Ver / Imprimir
+        </button>
+      </div>
     </div>
     ${filas.join('')}`;
 }
 
 // ---- PDF ----
-function exportarPDF(){
-  if(!window.jspdf){alert('Librería PDF cargando.');return;}
+function exportarPDF(modo='download'){
+  // Ensure jsPDF is loaded
+  if(!window.jspdf||!window.jspdf.jsPDF){
+    alert('La librería PDF aún está cargando. Espera unos segundos e intenta de nuevo.');return;
+  }
   const{jsPDF}=window.jspdf;
   const idx=parseInt(document.getElementById('sel-sem')?.value||0);
   const reg=registros[idx];const compras=buildCompras(reg);if(!compras.length)return;
@@ -942,7 +951,15 @@ function exportarPDF(){
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GRIS);
   doc.text(`Total: ${compras.length} productos · A pedir: ${compras.filter(c=>{const s=getStock(c.nombre);return c.total-(s.cantML||0)>0;}).length}`,ML,y);
   doc.text('Bitácora Agroquímica — AJVJ',PW-MR,y,{align:'right'});
-  doc.save(`Pedido_${reg.semana.replace(/-/g,'')}.pdf`);
+  const filename=`Pedido_${reg.semana.replace(/-/g,'')}.pdf`;
+  if(modo==='tab'){
+    const blob=doc.output('blob');
+    const url=URL.createObjectURL(blob);
+    window.open(url,'_blank');
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+  } else {
+    doc.save(filename);
+  }
 }
 
 // ---- HISTORIAL ----
@@ -950,19 +967,82 @@ function renderHist(){
   const el=document.getElementById('hist-list');
   if(!registros.length){el.innerHTML='<div class="empty">Sin registros aún.</div>';return;}
   const isAdmin=currentRole==='admin';
-  el.innerHTML=registros.map(r=>`
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+  el.innerHTML=registros.map(r=>{
+    // Calcular resumen de totales por producto
+    const totales={};
+    r.modulos.forEach(m=>m.dias.forEach(d=>d.productos.forEach(p=>{
+      const k=p.nombre.toLowerCase().trim()+'|'+(p.uOut||'mL');
+      if(!totales[k])totales[k]={nombre:p.nombre,uOut:p.uOut||'mL',total:0,usos:new Set()};
+      totales[k].total+=p.cant||0;
+      totales[k].usos.add(p.tipo);
+    })));
+    const resumen=Object.values(totales).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+
+    // Detalle por módulo y día
+    const detalleModulos=r.modulos.filter(m=>m.dias.some(d=>d.productos.length||d.tratamiento)).map(m=>{
+      const diasConTen=m.dias.filter(d=>d.productos.length||d.tratamiento);
+      if(!diasConTen.length) return '';
+      return`<div style="margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="font-weight:700;font-size:13px;color:#185FA5">${m.nombre}</div>
+          ${m.cultivo?`<span class="chip">${m.cultivo}</span>`:''}
+          ${m.superficie?`<span class="chip">${m.superficie.toLocaleString()} m²</span>`:''}
+          ${m.caldoFoliar?`<span class="chip">Caldo: ${m.caldoFoliar} L</span>`:''}
+        </div>
+        ${diasConTen.map(d=>`
+          <div style="margin-bottom:8px;padding-left:12px;border-left:2px solid #e0e0da">
+            <div style="font-weight:600;font-size:12px;margin-bottom:4px">
+              ${d.dia}${d.fecha?' <span style="color:#aaa;font-weight:400">('+d.fecha+')</span>':''}
+              ${d.tratamiento?` — <span style="font-weight:400;color:#555">${d.tratamiento}</span>`:''}
+            </div>
+            ${d.productos.length?`<table class="pt">
+              <thead><tr><th style="width:52px">Uso</th><th>Producto</th><th>Dosis</th><th>Calculado</th></tr></thead>
+              <tbody>${d.productos.map(p=>`<tr>
+                <td><span class="${p.tipo==='foliar'?'fb':'sb'}">${p.tipo}</span></td>
+                <td style="font-weight:500">${p.nombre}</td>
+                <td style="color:#888">${p.dosis} ${p.unidad}${p.caldoCustom?' ('+p.caldoCustom+' L caldo)':''}</td>
+                <td style="font-weight:700;color:#185FA5">${p.display||'—'}</td>
+              </tr>`).join('')}</tbody>
+            </table>`:'<div style="font-size:12px;color:#bbb">Sin productos este día</div>'}
+          </div>`).join('')}
+      </div>`;
+    }).join('');
+
+    return`<div class="card" style="margin-bottom:1rem">
+      <!-- Encabezado -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #f0f0ec">
         <div>
-          <div style="font-weight:700">Semana del ${r.semana}</div>
-          <div style="font-size:12px;color:#888">${r.asesor||''}${r.jefe?' · '+r.jefe:''}${r.guardadoPor?' · Guardado por: '+r.guardadoPor:''}</div>
-          <div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px">
+          <div style="font-weight:700;font-size:15px">Semana del ${r.semana}</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">${r.asesor||''}${r.jefe?' · '+r.jefe:''}${r.guardadoPor?' · Por: '+r.guardadoPor:''}</div>
+          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
             ${r.modulos.filter(m=>m.cultivo||m.superficie).map(m=>`<span class="chip">${m.nombre}${m.cultivo?' – '+m.cultivo:''} ${m.superficie?'('+m.superficie.toLocaleString()+' m²)':''}</span>`).join('')}
           </div>
         </div>
-        ${isAdmin?`<button class="btn-del" onclick="elimReg(${r.id})">Eliminar</button>`:'<span style="font-size:11px;color:#ccc">🔒</span>'}
+        ${isAdmin?`<button class="btn-del" onclick="elimReg(${r.id})">Eliminar</button>`:''}
       </div>
-    </div>`).join('');
+
+      <!-- Detalle completo por módulo -->
+      <details open>
+        <summary style="font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;color:#185FA5">📋 Detalle de aplicaciones por módulo</summary>
+        <div style="margin-top:8px">${detalleModulos||'<div class="empty">Sin aplicaciones registradas esta semana.</div>'}</div>
+      </details>
+
+      <!-- Resumen de totales -->
+      ${resumen.length?`<details style="margin-top:12px">
+        <summary style="font-size:13px;font-weight:600;cursor:pointer;color:#0F6E56">📊 Resumen de totales de la semana</summary>
+        <div style="margin-top:8px">
+          <table class="pt">
+            <thead><tr><th>Producto</th><th>Uso</th><th style="text-align:right">Total semana</th></tr></thead>
+            <tbody>${resumen.map(t=>`<tr>
+              <td style="font-weight:500">${t.nombre}</td>
+              <td>${[...t.usos].map(u=>`<span class="${u==='foliar'?'fb':'sb'}">${u}</span>`).join(' ')}</td>
+              <td style="text-align:right;font-weight:700">${fmt(t.total,t.uOut)}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </details>`:''}
+    </div>`;
+  }).join('');
 }
 function elimReg(id){
   if(currentRole!=='admin')return;
