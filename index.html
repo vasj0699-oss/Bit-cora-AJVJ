@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitácora Agroquímica — AJVJ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;color:#1a1a1a;font-size:14px;background:#f5f5f3;min-height:100vh}
+.app-header{background:#185FA5;color:#fff;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.app-header h1{font-size:15px;font-weight:700}
+.hdr-right{display:flex;align-items:center;gap:12px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;display:inline-block;margin-right:4px;transition:background .3s}
+.status-dot.online{background:#4ade80}.status-dot.offline{background:#f87171}
+.status-label{font-size:11px;opacity:.85}
+.user-pill{font-size:11px;background:rgba(255,255,255,.18);border-radius:20px;padding:3px 10px;display:flex;align-items:center;gap:6px}
+.role-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px}
+.role-admin{background:#fef08a;color:#713f12}
+.role-capturista{background:#bfdbfe;color:#1e3a8a}
+.btn-logout{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer}
+.btn-logout:hover{background:rgba(255,255,255,.25)}
+.app-body{max-width:980px;margin:0 auto;padding:18px 14px}
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f5f3}
+.login-box{background:#fff;border:1px solid #e0e0da;border-radius:14px;padding:2.5rem 2rem;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.07)}
+.login-logo{text-align:center;margin-bottom:1.5rem}
+.login-logo div{font-size:20px;font-weight:700;color:#185FA5}
+.login-logo span{font-size:12px;color:#aaa}
+.login-box label{font-size:12px;color:#666;display:block;margin-bottom:3px;margin-top:12px}
+.login-box input{width:100%;font-size:14px;padding:9px 12px;border:1px solid #ddd;border-radius:7px;outline:none}
+.login-box input:focus{border-color:#185FA5;box-shadow:0 0 0 2px rgba(24,95,165,.1)}
+.btn-login{background:#185FA5;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:18px}
+.btn-login:hover{background:#0c447c}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+.login-err{color:#c00;font-size:12px;text-align:center;margin-top:8px;min-height:18px}
+.login-note{font-size:11px;color:#bbb;text-align:center;margin-top:12px}
+/* Loading */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+.spinner{width:34px;height:34px;border:3px solid #e0e0e0;border-top-color:#185FA5;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* App */
+h3{font-size:14px;font-weight:600;margin-bottom:.5rem}
+label{font-size:12px;color:#666;display:block;margin-bottom:3px}
+input,select{width:100%;font-size:13px;padding:7px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#1a1a1a;outline:none}
+input:focus,select:focus{border-color:#185FA5;box-shadow:0 0 0 2px rgba(24,95,165,.1)}
+.card{background:#fff;border:1px solid #e8e8e4;border-radius:10px;padding:1rem 1.25rem;margin-bottom:.75rem}
+.tabs{display:flex;border-bottom:1px solid #e0e0da;margin-bottom:1.25rem;overflow-x:auto;background:#fff;border-radius:10px 10px 0 0;padding:0 6px}
+.tab{padding:10px 13px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:#888;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab.active{color:#185FA5;border-bottom:2px solid #185FA5}
+.tab:hover{color:#185FA5}
+.section{display:none}.section.active{display:block}
+.mod-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:1rem}
+.mod-tab{padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #ddd;border-radius:6px;background:#fff;color:#666}
+.mod-tab.active{background:#185FA5;color:#fff;border-color:#185FA5}
+.mod-panel{display:none}.mod-panel.active{display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.btn-sec{background:#fff;border:1px solid #ddd;border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;color:#333;white-space:nowrap}
+.btn-sec:hover{background:#f5f5f3}
+.btn-del{background:transparent;border:1px solid #ddd;color:#aaa;border-radius:6px;padding:2px 7px;font-size:12px;cursor:pointer}
+.btn-del:hover{background:#fff0f0;color:#c00;border-color:#fcc}
+.btn-primary{background:#185FA5;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;width:100%}
+.btn-primary:hover{background:#0c447c}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-pdf{background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px}
+.btn-pdf:hover{background:#085041}
+.fb{background:#E1F5EE;color:#0F6E56;display:inline-block;font-size:11px;padding:1px 7px;border-radius:5px;font-weight:600}
+.sb{background:#FAEEDA;color:#854F0B;display:inline-block;font-size:11px;padding:1px 7px;border-radius:5px;font-weight:600}
+table.pt{width:100%;border-collapse:collapse;font-size:13px}
+table.pt th{font-size:11px;font-weight:600;color:#888;text-align:left;padding:5px 7px;border-bottom:1px solid #eee;background:#fafaf8}
+table.pt td{padding:5px 7px;border-bottom:1px solid #f0f0ec;vertical-align:middle}
+table.pt tr:last-child td{border-bottom:none}
+table.pt tr:hover td{background:#fafaf8}
+.calc-box{background:#f5f5f3;border-radius:7px;padding:.65rem 1rem;margin-top:6px;border:1px solid #ebebea}
+.calc-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0}
+.sep{border:none;border-top:1px solid #f0f0ec;margin:.6rem 0}
+.empty{text-align:center;padding:2rem;color:#bbb;font-size:13px}
+.msg-ok{color:#0F6E56;font-size:13px;text-align:center;margin-top:7px;font-weight:500}
+.msg-err{color:#c00;font-size:13px;text-align:center;margin-top:7px}
+.chip{display:inline-block;font-size:11px;background:#f0f0ec;border-radius:5px;padding:2px 8px;color:#666}
+.need-yes{background:#fff0f0;color:#a32d2d;display:inline-block;font-size:12px;padding:3px 10px;border-radius:6px;font-weight:600}
+.need-no{background:#eaf3de;color:#3b6d11;display:inline-block;font-size:12px;padding:3px 10px;border-radius:6px;font-weight:600}
+.pres-badge{display:inline-block;background:#e6f1fb;color:#0c447c;font-size:11px;padding:2px 9px;border-radius:5px;font-weight:500}
+.ac-wrap{position:relative}
+.ac-drop{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #bbb;border-radius:7px;z-index:99;max-height:190px;overflow-y:auto;display:none;box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.ac-item{padding:8px 11px;font-size:13px;cursor:pointer;border-bottom:1px solid #f0f0ec}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover{background:#f5f5f3}
+.ac-dosis{font-size:11px;color:#aaa;margin-left:7px}
+.inv-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0ec}
+.inv-row:last-child{border-bottom:none}
+.stock-ok{color:#0F6E56;font-weight:600}
+.stock-low{color:#854F0B;font-weight:600}
+.stock-out{color:#c00;font-weight:600}
+.db-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0ec;font-size:13px}
+.db-row:last-child{border-bottom:none}
+.dia-label{font-weight:600;font-size:13px}
+.dia-fecha{font-size:11px;color:#aaa;margin-left:8px}
+.cfg-head{font-size:11px;font-weight:600;color:#aaa;padding-bottom:4px;display:block}
+.info-note{font-size:12px;color:#888;background:#fafaf8;border:1px solid #ebebea;border-radius:7px;padding:8px 12px;margin-bottom:12px}
+.locked-note{font-size:12px;color:#854F0B;background:#FAEEDA;border:1px solid #f5d9a8;border-radius:7px;padding:8px 12px;margin-bottom:8px}
+.sync-tag{font-size:10px;background:#e6f1fb;color:#185FA5;border-radius:4px;padding:1px 6px;font-weight:600;margin-left:6px}
+/* Admin panel */
+.admin-section{background:#fff8f0;border:1px solid #f5d9a8;border-radius:10px;padding:1rem 1.25rem;margin-bottom:.75rem}
+.user-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0ece4;font-size:13px}
+.user-row:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div>🌱 Bitácora Agroquímica</div>
+      <span>AJVJ Hidropónicos</span>
+    </div>
+    <label>Correo electrónico</label>
+    <input type="email" id="login-email" placeholder="usuario@ajvj.com" autocomplete="email">
+    <label>Contraseña</label>
+    <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Iniciar sesión</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-note">Contacta al administrador si no tienes acceso.</div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading" style="display:none">
+  <div class="spinner"></div>
+  <span id="loading-msg">Cargando datos…</span>
+</div>
+
+<!-- APP -->
+<div id="app-screen" style="display:none">
+  <div class="app-header">
+    <h1>Bitácora Agroquímica <span id="hdr-empresa" style="font-weight:400;opacity:.8;font-size:13px"></span></h1>
+    <div class="hdr-right">
+      <div><span class="status-dot" id="status-dot"></span><span class="status-label" id="status-label">…</span></div>
+      <div class="user-pill">
+        <span id="hdr-email" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <span class="role-badge" id="hdr-role"></span>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <div class="tabs" id="main-tabs">
+      <button class="tab" onclick="showMain('config',event)">⚙ Configuración</button>
+      <button class="tab active" onclick="showMain('captura',event)">📋 Captura semanal</button>
+      <button class="tab" onclick="showMain('inventario',event)">📦 Inventario</button>
+      <button class="tab" onclick="showMain('compras',event)">🛒 Pedido</button>
+      <button class="tab" onclick="showMain('bdprod',event)">🌿 Productos</button>
+      <button class="tab" onclick="showMain('historial',event)">📁 Historial</button>
+      <button class="tab admin-only" id="tab-usuarios-btn" onclick="showMain('usuarios',event)" style="display:none">👥 Usuarios</button>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="tab-config" class="section">
+      <div class="card">
+        <h3>Datos generales <span class="sync-tag">⟳ Sincronizado</span></h3>
+        <div class="grid3" style="margin-bottom:10px">
+          <div><label>Empresa</label><input type="text" id="cfg-empresa" placeholder="AJVJ Hidropónicos SPR de RI de CV"></div>
+          <div><label>Asesor</label><input type="text" id="cfg-asesor" placeholder="Ing. nombre"></div>
+          <div><label>Jefe / Monitor</label><input type="text" id="cfg-jefe" placeholder="Nombre"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Módulos <span class="sync-tag">⟳ Sincronizado</span></h3>
+        <div style="display:grid;grid-template-columns:1.4fr 1.4fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+          <span class="cfg-head">Nombre</span><span class="cfg-head">Cultivo</span>
+          <span class="cfg-head">Superficie m²</span><span class="cfg-head">Núm. plantas</span>
+          <span class="cfg-head">Densidad pl/m²</span><span class="cfg-head">Caldo foliar L</span>
+        </div>
+        <div id="cfg-mods"></div>
+      </div>
+      <button class="btn-primary" id="btn-save-cfg" onclick="guardarConfig()">Guardar configuración</button>
+      <div id="msg-cfg"></div>
+    </div>
+
+    <!-- CAPTURA -->
+    <div id="tab-captura" class="section active">
+      <div class="card">
+        <div class="grid3">
+          <div><label>Semana del (lunes)</label><input type="date" id="g-semana" onchange="onSemanaChange()"></div>
+          <div><label>Asesor</label><input type="text" id="g-asesor"></div>
+          <div><label>Jefe / Monitor</label><input type="text" id="g-jefe"></div>
+        </div>
+      </div>
+      <div class="mod-tabs" id="mod-tabs"></div>
+      <div id="mod-panels"></div>
+      <button class="btn-primary" id="btn-save-sem" onclick="guardarSemana()">Guardar semana completa</button>
+      <div id="msg-cap"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="tab-inventario" class="section">
+      <div class="card" id="inv-form-card">
+        <h3>Actualizar stock <span class="sync-tag">⟳ Sincronizado</span></h3>
+        <div id="inv-locked-note" class="locked-note" style="display:none">🔒 Solo el administrador puede modificar el inventario.</div>
+        <div id="inv-form">
+          <div class="grid3" style="margin-bottom:10px">
+            <div><label>Producto</label>
+              <div class="ac-wrap">
+                <input type="text" id="inv-nombre" placeholder="Buscar producto…" oninput="acInv(this.value)" autocomplete="off">
+                <div class="ac-drop" id="inv-ac"></div>
+              </div>
+            </div>
+            <div><label>Cantidad disponible</label><input type="number" id="inv-cant" placeholder="0" min="0" step="0.01"></div>
+            <div><label>Unidad</label>
+              <select id="inv-unid"><option value="mL">mL</option><option value="L">L</option><option value="g">g</option><option value="kg">kg</option></select>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="guardarStock()">Guardar stock</button>
+          <div id="msg-inv"></div>
+        </div>
+      </div>
+      <h3 style="margin-bottom:.5rem">Stock actual</h3>
+      <div id="inv-stock"></div>
+    </div>
+
+    <!-- PEDIDO -->
+    <div id="tab-compras" class="section">
+      <div id="compras-sel" style="margin-bottom:1rem"></div>
+      <div id="compras-content"></div>
+    </div>
+
+    <!-- PRODUCTOS -->
+    <div id="tab-bdprod" class="section">
+      <div class="card">
+        <h3>Agregar / editar producto <span class="sync-tag">⟳ Sincronizado</span></h3>
+        <div class="info-note">El tipo de aplicación (foliar/suelo) se define al momento de capturar, no en el producto.</div>
+        <div class="grid3" style="margin-bottom:10px">
+          <div><label>Nombre del producto</label><input type="text" id="db-nombre" placeholder="Nombre del producto"></div>
+          <div><label>Dosis habitual</label><input type="number" id="db-dosis" placeholder="1" min="0" step="0.001"></div>
+          <div><label>Unidad habitual</label>
+            <select id="db-unidad">
+              <option value="mL/L caldo">mL/L caldo</option><option value="L/ha">L/ha</option>
+              <option value="mL/ha">mL/ha</option><option value="g/L caldo">g/L caldo</option>
+              <option value="mL/planta">mL/planta</option><option value="L/planta">L/planta</option><option value="g/ha">g/ha</option>
+            </select>
+          </div>
+        </div>
+        <input type="text" id="db-notas" placeholder="Notas (ingrediente activo, proveedor, concentración…)" style="margin-bottom:10px">
+        <button class="btn-primary" onclick="guardarProd()">Guardar producto</button>
+        <div id="msg-db"></div>
+      </div>
+      <h3 style="margin-bottom:.5rem">Productos registrados</h3>
+      <div id="db-lista"></div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div id="tab-historial" class="section">
+      <div id="hist-list"></div>
+    </div>
+
+    <!-- USUARIOS (solo admin) -->
+    <div id="tab-usuarios" class="section">
+      <div class="admin-section">
+        <h3>Crear usuario nuevo</h3>
+        <div class="grid3" style="margin-bottom:10px;margin-top:10px">
+          <div><label>Correo electrónico</label><input type="email" id="new-email" placeholder="usuario@ajvj.com"></div>
+          <div><label>Contraseña inicial</label><input type="password" id="new-pass" placeholder="Mínimo 6 caracteres"></div>
+          <div><label>Rol</label>
+            <select id="new-role">
+              <option value="capturista">Capturista</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="crearUsuario()">Crear usuario</button>
+        <div id="msg-usr"></div>
+      </div>
+      <h3 style="margin-bottom:.5rem">Usuarios registrados</h3>
+      <div id="usr-lista"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+const firebaseConfig={
+  apiKey:"AIzaSyDY-8SG4RHjRcaXXwC1zzqA_atQDvJIeAY",
+  authDomain:"fitosanidad-ajvj.firebaseapp.com",
+  databaseURL:"https://fitosanidad-ajvj-default-rtdb.firebaseio.com",
+  projectId:"fitosanidad-ajvj"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.database();
+
+const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const UF=['mL/L caldo','g/L caldo','mL/ha','L/ha'];
+const US=['L/ha','mL/ha','L/planta','mL/planta','L/m²','mL/m²','g/planta','g/m²'];
+const PRES_ML=[100,250,500,1000,2000,4000,5000,10000,20000];
+const PRES_G=[100,250,500,1000,5000,25000];
+const NUM_MODS=8;
+
+let currentUser=null, currentRole=null;
+let cfg={asesor:'',jefe:'',empresa:'',modulos:Array.from({length:NUM_MODS},(_,i)=>({nombre:`Módulo ${String.fromCharCode(65+i)}`,cultivo:'',superficie:0,num_plantas:0,caldoFoliar:200}))};
+let registros=[],inventario={},bdProd=[],usuariosDB={};
+let mods=[], currentTab='captura';
+let listeners=[];
+
+function sk(s){return(s||'').toLowerCase().trim().replace(/[.#$[\]/\s]/g,'_');}
+
+// ---- AUTH ----
+function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const err=document.getElementById('login-err');
+  const btn=document.getElementById('btn-login');
+  if(!email||!pass){err.textContent='Completa correo y contraseña.';return;}
+  btn.disabled=true;btn.textContent='Iniciando sesión…';err.textContent='';
+  auth.signInWithEmailAndPassword(email,pass)
+    .catch(e=>{
+      err.textContent=e.code==='auth/wrong-password'||e.code==='auth/user-not-found'?'Correo o contraseña incorrectos.':e.message;
+      btn.disabled=false;btn.textContent='Iniciar sesión';
+    });
+}
+function doLogout(){
+  listeners.forEach(fn=>fn());listeners=[];
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(async user=>{
+  if(!user){
+    document.getElementById('login-screen').style.display='flex';
+    document.getElementById('app-screen').style.display='none';
+    document.getElementById('loading').style.display='none';
+    document.getElementById('btn-login').disabled=false;
+    document.getElementById('btn-login').textContent='Iniciar sesión';
+    return;
+  }
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('loading-msg').textContent='Verificando acceso…';
+  currentUser=user;
+
+  // Timeout si Firebase no responde (reglas bloqueando)
+  const authTimeout=setTimeout(()=>{
+    document.getElementById('loading').innerHTML=`
+      <div style="text-align:center;padding:2rem;max-width:360px">
+        <div style="font-size:40px;margin-bottom:1rem">⚠️</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px;color:#333">No se pudo conectar a la base de datos</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">Esto ocurre cuando las reglas de Firebase aún no están publicadas. Ve a Firebase → Realtime Database → Reglas y publica las reglas indicadas por el asistente.</div>
+        <button onclick="auth.signOut()" style="padding:8px 20px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;margin-right:8px">Cerrar sesión</button>
+        <button onclick="location.reload()" style="padding:8px 20px;background:#eee;color:#333;border:none;border-radius:8px;font-size:13px;cursor:pointer">Reintentar</button>
+      </div>`;
+    document.getElementById('loading').style.background='rgba(255,255,255,.98)';
+    document.getElementById('loading').style.display='flex';
+  },8000);
+
+  try{
+    // Verificar rol con timeout
+    const rolSnap=await db.ref(`bitacora/usuarios/${user.uid}/rol`).get();
+    if(!rolSnap.exists()){
+      await db.ref(`bitacora/usuarios/${user.uid}`).set({email:user.email,rol:'capturista',creado:Date.now()});
+      currentRole='capturista';
+    } else {
+      currentRole=rolSnap.val();
+    }
+    // Acepta tanto 'admins' como 'Admins' (mayúscula/minúscula)
+    const adminSnap=await db.ref(`bitacora/admins/${user.uid}`).get();
+    const adminSnapCap=await db.ref(`bitacora/Admins/${user.uid}`).get();
+    if(adminSnap.exists()||adminSnapCap.exists()) currentRole='admin';
+    clearTimeout(authTimeout);
+    setupUI();
+    initListeners();
+  }catch(e){
+    clearTimeout(authTimeout);
+    document.getElementById('loading').innerHTML=`
+      <div style="text-align:center;padding:2rem;max-width:360px">
+        <div style="font-size:40px;margin-bottom:1rem">⚠️</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px;color:#333">Error de conexión</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">${e.message}</div>
+        <button onclick="auth.signOut()" style="padding:8px 20px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">Cerrar sesión</button>
+      </div>`;
+    document.getElementById('loading').style.background='rgba(255,255,255,.98)';
+  }
+});
+
+function setupUI(){
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('hdr-email').textContent=currentUser.email;
+  const rb=document.getElementById('hdr-role');
+  rb.textContent=currentRole==='admin'?'Admin':'Capturista';
+  rb.className='role-badge '+(currentRole==='admin'?'role-admin':'role-capturista');
+
+  // Mostrar pestaña usuarios solo a admin
+  document.getElementById('tab-usuarios-btn').style.display=currentRole==='admin'?'block':'none';
+
+  // Inventario: mostrar/ocultar form según rol
+  if(currentRole!=='admin'){
+    document.getElementById('inv-form').style.display='none';
+    document.getElementById('inv-locked-note').style.display='block';
+  } else {
+    document.getElementById('inv-form').style.display='block';
+    document.getElementById('inv-locked-note').style.display='none';
+  }
+
+  // Config solo admin
+  document.getElementById('btn-save-cfg').style.display=currentRole==='admin'?'block':'none';
+}
+
+// ---- CONEXIÓN ----
+db.ref('.info/connected').on('value',snap=>{
+  const on=snap.val();
+  document.getElementById('status-dot').className='status-dot '+(on?'online':'offline');
+  document.getElementById('status-label').textContent=on?'En línea':'Sin conexión';
+});
+
+// ---- LISTENERS TIEMPO REAL ----
+function initListeners(){
+  const cfgRef=db.ref('bitacora/cfg');
+  const h1=cfgRef.on('value',snap=>{
+    if(snap.exists()){
+      cfg=snap.val();
+      while(cfg.modulos.length<NUM_MODS)
+        cfg.modulos.push({nombre:`Módulo ${String.fromCharCode(65+cfg.modulos.length)}`,cultivo:'',superficie:0,num_plantas:0,caldoFoliar:200});
+    }
+    resetMods();initModTabs();
+    document.getElementById('g-asesor').value=cfg.asesor||'';
+    document.getElementById('g-jefe').value=cfg.jefe||'';
+    document.getElementById('hdr-empresa').textContent=cfg.empresa?`— ${cfg.empresa}`:'';
+    if(currentTab==='config') renderConfigMods();
+    document.getElementById('loading').style.display='none';
+  });
+  listeners.push(()=>cfgRef.off('value',h1));
+
+  const regRef=db.ref('bitacora/registros');
+  const h2=regRef.on('value',snap=>{
+    registros=snap.exists()?Object.values(snap.val()).sort((a,b)=>b.id-a.id):[];
+    if(currentTab==='historial') renderHist();
+    if(currentTab==='compras') renderCompras();
+  });
+  listeners.push(()=>regRef.off('value',h2));
+
+  const invRef=db.ref('bitacora/inventario');
+  const h3=invRef.on('value',snap=>{
+    inventario=snap.exists()?snap.val():{};
+    if(currentTab==='inventario') renderStock();
+  });
+  listeners.push(()=>invRef.off('value',h3));
+
+  const prodRef=db.ref('bitacora/productos');
+  const h4=prodRef.on('value',snap=>{
+    bdProd=snap.exists()?Object.values(snap.val()).filter(p=>p&&p.nombre):[];
+    if(currentTab==='bdprod') renderBD();
+  });
+  listeners.push(()=>prodRef.off('value',h4));
+
+  const usrRef=db.ref('bitacora/usuarios');
+  const h5=usrRef.on('value',snap=>{
+    usuariosDB=snap.exists()?snap.val():{};
+    if(currentTab==='usuarios') renderUsuarios();
+  });
+  listeners.push(()=>usrRef.off('value',h5));
+}
+
+// ---- CONFIG ----
+function resetMods(){mods=cfg.modulos.map(m=>({...m,dias:DIAS.map(()=>({tratamiento:'',productos:[]}))}));}
+function getFechas(sem){
+  if(!sem) return DIAS.map(()=>'');
+  const base=new Date(sem+'T12:00:00');
+  return DIAS.map((_,i)=>{const d=new Date(base);d.setDate(d.getDate()+i);return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'});});
+}
+function renderConfigMods(){
+  document.getElementById('cfg-empresa').value=cfg.empresa||'';
+  document.getElementById('cfg-asesor').value=cfg.asesor||'';
+  document.getElementById('cfg-jefe').value=cfg.jefe||'';
+  document.getElementById('cfg-mods').innerHTML=cfg.modulos.map((m,i)=>`
+    <div style="display:grid;grid-template-columns:1.4fr 1.4fr 1fr 1fr 1fr 1fr;gap:6px;align-items:center;margin-bottom:6px">
+      <input type="text" value="${m.nombre||''}" ${currentRole!=='admin'?'disabled':''} oninput="updCfgMod(${i},'nombre',this.value)">
+      <input type="text" value="${m.cultivo||''}" ${currentRole!=='admin'?'disabled':''} oninput="updCfgMod(${i},'cultivo',this.value)">
+      <input type="number" value="${m.superficie||''}" ${currentRole!=='admin'?'disabled':''} placeholder="m²" min="0" oninput="updCfgMod(${i},'superficie',parseFloat(this.value)||0);updDensCfg(${i})">
+      <input type="number" value="${m.num_plantas||''}" ${currentRole!=='admin'?'disabled':''} placeholder="plantas" min="0" oninput="updCfgMod(${i},'num_plantas',parseFloat(this.value)||0);updDensCfg(${i})">
+      <div id="dcfg-${i}" style="font-size:13px;font-weight:600;text-align:center;padding:6px 4px;color:#666;border-bottom:1px solid #eee">${m.superficie>0&&m.num_plantas>0?(m.num_plantas/m.superficie).toFixed(2)+' pl/m²':'—'}</div>
+      <input type="number" value="${m.caldoFoliar||''}" ${currentRole!=='admin'?'disabled':''} placeholder="200" min="0" oninput="updCfgMod(${i},'caldoFoliar',parseFloat(this.value)||200)">
+    </div>`).join('');
+}
+function updCfgMod(i,f,v){cfg.modulos[i][f]=v;}
+function updDensCfg(i){
+  const el=document.getElementById(`dcfg-${i}`);if(!el)return;
+  const m=cfg.modulos[i];
+  el.textContent=m.superficie>0&&m.num_plantas>0?(m.num_plantas/m.superficie).toFixed(2)+' pl/m²':'—';
+}
+function guardarConfig(){
+  if(currentRole!=='admin')return;
+  cfg.empresa=document.getElementById('cfg-empresa').value.trim();
+  cfg.asesor=document.getElementById('cfg-asesor').value.trim();
+  cfg.jefe=document.getElementById('cfg-jefe').value.trim();
+  db.ref('bitacora/cfg').set(cfg).then(()=>{
+    const msg=document.getElementById('msg-cfg');
+    msg.innerHTML='<div class="msg-ok">✓ Guardado y sincronizado.</div>';
+    setTimeout(()=>{msg.innerHTML='';},3000);
+  });
+}
+
+// ---- CAPTURA ----
+function onSemanaChange(){
+  const fechas=getFechas(document.getElementById('g-semana').value);
+  DIAS.forEach((_,di)=>document.querySelectorAll(`.dfi-${di}`).forEach(el=>{el.textContent=fechas[di];}));
+}
+function initModTabs(){
+  const mt=document.getElementById('mod-tabs');
+  const mp=document.getElementById('mod-panels');
+  if(!mt||!mp)return;
+  mt.innerHTML=mods.map((m,i)=>`<button class="mod-tab${i===0?' active':''}" onclick="switchMod(${i})" id="mt-${i}">${m.nombre||'Módulo '+(i+1)}</button>`).join('');
+  mp.innerHTML=mods.map((m,i)=>`<div class="mod-panel${i===0?' active':''}" id="mp-${i}">${buildModPanel(i)}</div>`).join('');
+}
+function buildModPanel(mi){
+  const m=mods[mi];
+  const dens=m.superficie>0&&m.num_plantas>0?(m.num_plantas/m.superficie).toFixed(2)+' pl/m²':'—';
+  const fechas=getFechas(document.getElementById('g-semana')?.value||'');
+  return`<div class="card">
+    <div style="display:grid;grid-template-columns:1.5fr 1.5fr 1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;align-items:end">
+      <div><label>Módulo</label><input type="text" value="${m.nombre||''}" oninput="updMod(${mi},'nombre',this.value)"></div>
+      <div><label>Cultivo</label><input type="text" value="${m.cultivo||''}" oninput="updMod(${mi},'cultivo',this.value)"></div>
+      <div><label>Superficie m²</label><input type="number" value="${m.superficie||''}" placeholder="5035" min="0" oninput="updMod(${mi},'superficie',parseFloat(this.value)||0);recalcMod(${mi})"></div>
+      <div><label>Núm. plantas</label><input type="number" value="${m.num_plantas||''}" placeholder="13868" min="0" oninput="updMod(${mi},'num_plantas',parseFloat(this.value)||0);recalcMod(${mi})"></div>
+      <div><label>Densidad pl/m²</label><div id="dc-${mi}" style="font-size:14px;font-weight:700;padding:7px 0">${dens}</div></div>
+      <div><label>Caldo foliar L</label><input type="number" value="${m.caldoFoliar||''}" placeholder="200" min="0" oninput="updMod(${mi},'caldoFoliar',parseFloat(this.value)||0);recalcMod(${mi})"></div>
+    </div>
+    ${DIAS.map((d,di)=>`
+      <div id="dia-${mi}-${di}" style="margin-bottom:.6rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <div><span class="dia-label">${d}</span><span class="dfi-${di} dia-fecha">${fechas[di]}</span></div>
+          <div style="display:flex;gap:5px">
+            <button class="btn-sec" style="font-size:11px;padding:3px 9px" onclick="addProd(${mi},${di},'foliar')">+ Foliar</button>
+            <button class="btn-sec" style="font-size:11px;padding:3px 9px" onclick="addProd(${mi},${di},'suelo')">+ Suelo</button>
+          </div>
+        </div>
+        <input type="text" placeholder="Tratamiento / objetivo…" oninput="updTrat(${mi},${di},this.value)" style="font-size:12px;margin-bottom:4px">
+        <div id="pt-${mi}-${di}"></div><div id="pc-${mi}-${di}"></div>
+        ${di<6?'<hr class="sep" style="margin:.5rem 0">':''}
+      </div>`).join('')}
+  </div>`;
+}
+function switchMod(mi){
+  document.querySelectorAll('.mod-tab').forEach((b,i)=>b.classList.toggle('active',i===mi));
+  document.querySelectorAll('.mod-panel').forEach((p,i)=>p.classList.toggle('active',i===mi));
+}
+function updMod(mi,f,v){
+  mods[mi][f]=v;
+  if(f==='nombre'){const el=document.getElementById(`mt-${mi}`);if(el)el.textContent=v||`Módulo ${String.fromCharCode(65+mi)}`;}
+  if(f==='superficie'||f==='num_plantas'){
+    const m=mods[mi],el=document.getElementById(`dc-${mi}`);
+    if(el)el.textContent=m.superficie>0&&m.num_plantas>0?(m.num_plantas/m.superficie).toFixed(2)+' pl/m²':'—';
+  }
+}
+function updTrat(mi,di,v){mods[mi].dias[di].tratamiento=v;}
+function addProd(mi,di,tipo){mods[mi].dias[di].productos.push({tipo,nombre:'',dosis:'',unidad:tipo==='foliar'?'mL/L caldo':'L/ha',caldoCustom:''});renderProdsDia(mi,di);}
+function delProd(mi,di,pi){mods[mi].dias[di].productos.splice(pi,1);renderProdsDia(mi,di);}
+function updProd(mi,di,pi,f,v){mods[mi].dias[di].productos[pi][f]=v;calcDia(mi,di);}
+
+function renderProdsDia(mi,di){
+  const prods=mods[mi].dias[di].productos;
+  const el=document.getElementById(`pt-${mi}-${di}`);
+  if(!prods.length){el.innerHTML='';document.getElementById(`pc-${mi}-${di}`).innerHTML='';return;}
+  el.innerHTML=`<table class="pt" style="margin-bottom:4px">
+    <thead><tr><th style="width:52px">Uso</th><th>Producto</th><th style="width:60px">Dosis</th><th style="width:120px">Unidad</th><th style="width:72px">Caldo L</th><th style="width:24px"></th></tr></thead>
+    <tbody>${prods.map((p,pi)=>`<tr>
+      <td><span class="${p.tipo==='foliar'?'fb':'sb'}">${p.tipo}</span></td>
+      <td><div class="ac-wrap">
+        <input type="text" value="${p.nombre}" placeholder="Producto" autocomplete="off"
+          oninput="updProd(${mi},${di},${pi},'nombre',this.value);acProd(this,${mi},${di},${pi})"
+          onfocus="acProd(this,${mi},${di},${pi})" style="min-width:100px">
+        <div class="ac-drop" id="ac-${mi}-${di}-${pi}"></div>
+      </div></td>
+      <td><input type="number" value="${p.dosis}" placeholder="0" min="0" step="0.001" oninput="updProd(${mi},${di},${pi},'dosis',this.value)" style="width:55px"></td>
+      <td><select onchange="updProd(${mi},${di},${pi},'unidad',this.value)" style="font-size:12px">
+        ${(p.tipo==='foliar'?UF:US).map(u=>`<option${u===p.unidad?' selected':''}>${u}</option>`).join('')}
+      </select></td>
+      <td>${p.tipo==='foliar'?`<input type="number" value="${p.caldoCustom}" placeholder="global" min="0" oninput="updProd(${mi},${di},${pi},'caldoCustom',this.value)" style="width:62px">`:
+      '<span style="color:#ccc">—</span>'}</td>
+      <td><button class="btn-del" onclick="delProd(${mi},${di},${pi})">×</button></td>
+    </tr>`).join('')}</tbody></table>`;
+  calcDia(mi,di);
+}
+function acProd(input,mi,di,pi){
+  const q=input.value.toLowerCase().trim();
+  const drop=document.getElementById(`ac-${mi}-${di}-${pi}`);
+  const matches=bdProd.filter(p=>!q||p.nombre.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){drop.style.display='none';return;}
+  drop.innerHTML=matches.map(p=>`<div class="ac-item" onmousedown="fillProd(${mi},${di},${pi},'${p.nombre.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')"><strong>${p.nombre}</strong><span class="ac-dosis">${p.dosis} ${p.unidad}</span>${p.notas?`<span class="ac-dosis">· ${p.notas}</span>`:''}</div>`).join('');
+  drop.style.display='block';
+  setTimeout(()=>document.addEventListener('click',()=>{drop.style.display='none';},{once:true}),50);
+}
+function fillProd(mi,di,pi,nombre){
+  const p=bdProd.find(x=>x.nombre===nombre);if(!p)return;
+  const prod=mods[mi].dias[di].productos[pi];
+  prod.nombre=p.nombre;prod.dosis=p.dosis;prod.unidad=p.unidad;
+  if(prod.tipo==='foliar'&&!UF.includes(p.unidad))prod.unidad='mL/L caldo';
+  if(prod.tipo==='suelo'&&!US.includes(p.unidad))prod.unidad='L/ha';
+  renderProdsDia(mi,di);
+}
+function acInv(q){
+  const drop=document.getElementById('inv-ac');
+  const matches=bdProd.filter(p=>!q||p.nombre.toLowerCase().includes(q.toLowerCase())).slice(0,8);
+  if(!matches.length){drop.style.display='none';return;}
+  drop.innerHTML=matches.map(p=>`<div class="ac-item" onmousedown="fillInvNombre('${p.nombre.replace(/'/g,"\\'")}')">${p.nombre}</div>`).join('');
+  drop.style.display='block';
+  setTimeout(()=>document.addEventListener('click',()=>{drop.style.display='none';},{once:true}),50);
+}
+function fillInvNombre(nombre){
+  document.getElementById('inv-nombre').value=nombre;
+  document.getElementById('inv-ac').style.display='none';
+  const k=sk(nombre);
+  if(inventario[k]){document.getElementById('inv-cant').value=inventario[k].cantOrig||'';document.getElementById('inv-unid').value=inventario[k].unidOrig||'mL';}
+}
+
+// ---- CÁLCULOS ----
+function calcProd(p,sup,plantas,ha,caldoGlobal){
+  const d=parseFloat(p.dosis)||0;
+  const caldoL=p.tipo==='foliar'?(parseFloat(p.caldoCustom)||caldoGlobal):0;
+  let cant=0,uOut='mL';const u=p.unidad;
+  if(p.tipo==='foliar'){
+    if(u==='mL/L caldo'){cant=d*caldoL;uOut='mL';}
+    else if(u==='g/L caldo'){cant=d*caldoL;uOut='g';}
+    else if(u==='mL/ha'){cant=d*ha;uOut='mL';}
+    else if(u==='L/ha'){cant=d*ha*1000;uOut='mL';}
+  }else{
+    if(u==='L/ha'){cant=d*ha*1000;uOut='mL';}
+    else if(u==='mL/ha'){cant=d*ha;uOut='mL';}
+    else if(u==='L/planta'){cant=d*plantas*1000;uOut='mL';}
+    else if(u==='mL/planta'){cant=d*plantas;uOut='mL';}
+    else if(u==='L/m²'){cant=d*sup*1000;uOut='mL';}
+    else if(u==='mL/m²'){cant=d*sup;uOut='mL';}
+    else if(u==='g/planta'){cant=d*plantas;uOut='g';}
+    else if(u==='g/m²'){cant=d*sup;uOut='g';}
+  }
+  return{cant,uOut,display:fmt(cant,uOut)};
+}
+function fmt(cant,uOut){
+  if(!cant||cant<=0)return'—';
+  if(uOut==='mL'&&cant>=1000)return`${parseFloat((cant/1000).toFixed(3))} L`;
+  if(uOut==='g'&&cant>=1000)return`${parseFloat((cant/1000).toFixed(3))} kg`;
+  return`${cant<1?cant.toFixed(3):parseFloat(cant.toFixed(3))} ${uOut}`;
+}
+function calcDia(mi,di){
+  const el=document.getElementById(`pc-${mi}-${di}`);if(!el)return;
+  const m=mods[mi];
+  const prods=m.dias[di].productos.filter(p=>p.nombre&&p.dosis);
+  if(!prods.length){el.innerHTML='';return;}
+  const ha=m.superficie/10000;
+  el.innerHTML=`<div class="calc-box">${prods.map(p=>{
+    const r=calcProd(p,m.superficie,m.num_plantas,ha,m.caldoFoliar);
+    const ci=p.tipo==='foliar'?` <span style="color:#ccc;font-size:11px">(${parseFloat(p.caldoCustom)||m.caldoFoliar} L caldo)</span>`:'';
+    return`<div class="calc-row"><span><span class="${p.tipo==='foliar'?'fb':'sb'}" style="margin-right:5px">${p.tipo}</span>${p.nombre}${ci}</span><span style="font-weight:700">${r.display}</span></div>`;
+  }).join('')}</div>`;
+}
+function recalcMod(mi){DIAS.forEach((_,di)=>calcDia(mi,di));}
+
+// ---- GUARDAR SEMANA ----
+function guardarSemana(){
+  const semana=document.getElementById('g-semana').value;
+  const msg=document.getElementById('msg-cap');
+  if(!semana){msg.innerHTML='<div class="msg-err">Indica la semana.</div>';return;}
+  const btn=document.getElementById('btn-save-sem');
+  btn.disabled=true;btn.textContent='Guardando…';
+  const fechas=getFechas(semana);
+  const snap=mods.map(m=>({
+    nombre:m.nombre,cultivo:m.cultivo,superficie:m.superficie,num_plantas:m.num_plantas,
+    caldoFoliar:m.caldoFoliar,ha:m.superficie/10000,
+    densidad:m.superficie>0&&m.num_plantas>0?(m.num_plantas/m.superficie).toFixed(2):'',
+    dias:m.dias.map((d,di)=>({
+      dia:DIAS[di],fecha:fechas[di],tratamiento:d.tratamiento,
+      productos:d.productos.filter(p=>p.nombre&&p.dosis).map(p=>{
+        const r=calcProd(p,m.superficie,m.num_plantas,m.superficie/10000,m.caldoFoliar);
+        addToBD(p);return{...p,...r};
+      })
+    }))
+  }));
+  const reg={id:Date.now(),semana,
+    asesor:document.getElementById('g-asesor').value.trim(),
+    jefe:document.getElementById('g-jefe').value.trim(),
+    empresa:cfg.empresa,
+    guardadoPor:currentUser.email,
+    modulos:snap};
+  db.ref(`bitacora/registros/${reg.id}`).set(reg)
+    .then(()=>{msg.innerHTML='<div class="msg-ok">✓ Semana guardada y sincronizada.</div>';setTimeout(()=>{msg.innerHTML='';},4000);})
+    .catch(e=>{msg.innerHTML=`<div class="msg-err">Error: ${e.message}</div>`;})
+    .finally(()=>{btn.disabled=false;btn.textContent='Guardar semana completa';});
+}
+function addToBD(p){
+  if(!p.nombre)return;
+  const k=sk(p.nombre);
+  if(!bdProd.find(x=>sk(x.nombre)===k))
+    db.ref(`bitacora/productos/${k}`).set({nombre:p.nombre,dosis:p.dosis,unidad:p.unidad,notas:''});
+}
+
+// ---- INVENTARIO ----
+function toMLBase(cant,unid){
+  if(unid==='L')return{v:cant*1000,u:'mL'};
+  if(unid==='kg')return{v:cant*1000,u:'g'};
+  return{v:cant,u:unid};
+}
+function guardarStock(){
+  if(currentRole!=='admin'){alert('Solo el administrador puede modificar el inventario.');return;}
+  const nombre=document.getElementById('inv-nombre').value.trim();
+  const cant=parseFloat(document.getElementById('inv-cant').value)||0;
+  const unid=document.getElementById('inv-unid').value;
+  const msg=document.getElementById('msg-inv');
+  if(!nombre){msg.innerHTML='<div class="msg-err">Escribe el nombre del producto.</div>';return;}
+  const{v,u}=toMLBase(cant,unid);
+  db.ref(`bitacora/inventario/${sk(nombre)}`).set({cantML:v,uOut:u,cantOrig:cant,unidOrig:unid,nombre})
+    .then(()=>{msg.innerHTML='<div class="msg-ok">✓ Stock actualizado.</div>';setTimeout(()=>{msg.innerHTML='';},2500);
+      document.getElementById('inv-nombre').value='';document.getElementById('inv-cant').value='';});
+}
+function getStock(nombre){return inventario[sk(nombre)]||{cantML:0,uOut:'mL'};}
+function renderStock(){
+  const el=document.getElementById('inv-stock');
+  const entries=Object.values(inventario).filter(x=>x&&x.nombre);
+  if(!entries.length){el.innerHTML='<div class="empty">Sin productos en inventario.</div>';return;}
+  const isAdmin=currentRole==='admin';
+  el.innerHTML=`<div class="card"><div>${entries.sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(inv=>{
+    const cls=inv.cantML<=0?'stock-out':inv.cantML<500?'stock-low':'stock-ok';
+    return`<div class="inv-row">
+      <span style="font-weight:500">${inv.nombre}</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="${cls}">${fmt(inv.cantML,inv.uOut)}</span>
+        ${isAdmin?`<button class="btn-del" onclick="delStock('${inv.nombre.replace(/'/g,"\\'")}')" >×</button>`:'<span style="font-size:11px;color:#ccc">🔒</span>'}
+      </div>
+    </div>`;
+  }).join('')}</div></div>`;
+}
+function delStock(nombre){
+  if(currentRole!=='admin')return;
+  db.ref(`bitacora/inventario/${sk(nombre)}`).remove();
+}
+
+// ---- PRODUCTOS ----
+function guardarProd(){
+  const nombre=document.getElementById('db-nombre').value.trim();
+  const msg=document.getElementById('msg-db');
+  if(!nombre){msg.innerHTML='<div class="msg-err">Escribe el nombre del producto.</div>';return;}
+  const obj={nombre,dosis:document.getElementById('db-dosis').value,unidad:document.getElementById('db-unidad').value,notas:document.getElementById('db-notas').value.trim()};
+  db.ref(`bitacora/productos/${sk(nombre)}`).set(obj)
+    .then(()=>{msg.innerHTML='<div class="msg-ok">✓ Producto guardado.</div>';setTimeout(()=>{msg.innerHTML='';},2500);
+      ['db-nombre','db-dosis','db-notas'].forEach(id=>{document.getElementById(id).value='';});});
+}
+function renderBD(){
+  const el=document.getElementById('db-lista');if(!el)return;
+  if(!bdProd.length){el.innerHTML='<div class="empty">Sin productos. Se agregan automáticamente al guardar semanas.</div>';return;}
+  const isAdmin=currentRole==='admin';
+  el.innerHTML=`<div class="card"><div>${[...bdProd].sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>`
+    <div class="db-row">
+      <div><strong>${p.nombre}</strong>
+        <span style="color:#aaa;font-size:12px;margin-left:10px">${p.dosis} ${p.unidad}</span>
+        ${p.notas?`<span style="color:#ccc;font-size:11px;margin-left:6px">${p.notas}</span>`:''}
+      </div>
+      ${isAdmin?`<button class="btn-del" onclick="delProdBD('${p.nombre.replace(/'/g,"\\'")}')" >×</button>`:'<span style="font-size:11px;color:#ccc">🔒</span>'}
+    </div>`).join('')}</div></div>`;
+}
+function delProdBD(nombre){
+  if(currentRole!=='admin')return;
+  db.ref(`bitacora/productos/${sk(nombre)}`).remove();
+}
+
+// ---- USUARIOS (solo admin) ----
+async function crearUsuario(){
+  if(currentRole!=='admin')return;
+  const email=document.getElementById('new-email').value.trim();
+  const pass=document.getElementById('new-pass').value;
+  const rol=document.getElementById('new-role').value;
+  const msg=document.getElementById('msg-usr');
+  if(!email||!pass){msg.innerHTML='<div class="msg-err">Completa correo y contraseña.</div>';return;}
+  if(pass.length<6){msg.innerHTML='<div class="msg-err">La contraseña debe tener al menos 6 caracteres.</div>';return;}
+  msg.innerHTML='<div style="color:#888;font-size:13px;text-align:center;margin-top:7px">Creando usuario…</div>';
+  try{
+    // Eliminar secondary app si ya existe para evitar conflicto
+    const existing=firebase.apps.find(a=>a.name==='secondary');
+    if(existing) await existing.delete();
+    const secApp=firebase.initializeApp(firebaseConfig,'secondary');
+    const secAuth=secApp.auth();
+    let uid;
+    try{
+      const cred=await secAuth.createUserWithEmailAndPassword(email,pass);
+      uid=cred.user.uid;
+    }finally{
+      await secAuth.signOut();
+      await secApp.delete();
+    }
+    await db.ref(`bitacora/usuarios/${uid}`).set({email,rol,creado:Date.now()});
+    if(rol==='admin'){
+      await db.ref(`bitacora/admins/${uid}`).set(true);
+      await db.ref(`bitacora/Admins/${uid}`).set(true);
+    }
+    document.getElementById('new-email').value='';
+    document.getElementById('new-pass').value='';
+    msg.innerHTML=`<div class="msg-ok">✓ Usuario creado: ${email} (${rol}). Ya puede iniciar sesión.</div>`;
+    setTimeout(()=>{msg.innerHTML='';},5000);
+  }catch(e){
+    const errores={
+      'auth/email-already-in-use':'Ese correo ya está registrado.',
+      'auth/weak-password':'La contraseña debe tener al menos 6 caracteres.',
+      'auth/invalid-email':'El correo no tiene un formato válido.',
+      'auth/operation-not-allowed':'Activa correo/contraseña en Firebase Authentication.'
+    };
+    msg.innerHTML=`<div class="msg-err">Error: ${errores[e.code]||e.message}</div>`;
+  }
+}
+function renderUsuarios(){
+  const el=document.getElementById('usr-lista');if(!el)return;
+  const lista=Object.entries(usuariosDB);
+  if(!lista.length){el.innerHTML='<div class="empty">Sin usuarios registrados.</div>';return;}
+  el.innerHTML=`<div class="card"><div>${lista.sort((a,b)=>a[1].email.localeCompare(b[1].email)).map(([uid,u])=>`
+    <div class="user-row">
+      <div>
+        <span style="font-weight:500">${u.email}</span>
+        ${uid===currentUser.uid?'<span style="font-size:11px;color:#aaa;margin-left:6px">(tú)</span>':''}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="role-badge ${u.rol==='admin'?'role-admin':'role-capturista'}">${u.rol==='admin'?'Admin':'Capturista'}</span>
+        ${uid!==currentUser.uid?`
+          <select onchange="cambiarRol('${uid}',this.value)" style="font-size:12px;width:auto;padding:3px 6px">
+            <option value="capturista"${u.rol!=='admin'?' selected':''}>Capturista</option>
+            <option value="admin"${u.rol==='admin'?' selected':''}>Admin</option>
+          </select>`:''}
+      </div>
+    </div>`).join('')}</div></div>`;
+}
+async function cambiarRol(uid,nuevoRol){
+  await db.ref(`bitacora/usuarios/${uid}/rol`).set(nuevoRol);
+  if(nuevoRol==='admin'){await db.ref(`bitacora/admins/${uid}`).set(true);await db.ref(`bitacora/Admins/${uid}`).set(true);}
+  else{await db.ref(`bitacora/admins/${uid}`).remove();await db.ref(`bitacora/Admins/${uid}`).remove();}
+}
+
+// ---- PEDIDO ----
+function buildCompras(reg){
+  const mapa={};
+  reg.modulos.forEach(m=>m.dias.forEach(d=>d.productos.forEach(p=>{
+    const key=p.nombre.toLowerCase().trim()+'|'+(p.uOut||'mL');
+    if(!mapa[key])mapa[key]={nombre:p.nombre,uOut:p.uOut||'mL',total:0,usos:new Set(),desglose:[]};
+    mapa[key].total+=p.cant||0;mapa[key].usos.add(p.tipo);
+    mapa[key].desglose.push({modulo:m.nombre,tipo:p.tipo,dia:d.dia,fecha:d.fecha||'',display:p.display});
+  })));
+  return Object.values(mapa).map(c=>({...c,usos:[...c.usos]})).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+}
+function sugerirPres(nec,uOut){
+  const pres=uOut==='g'?PRES_G:PRES_ML;
+  const cs=pres.map(p=>({p,n:Math.ceil(nec/p)})).filter(c=>c.n>=1&&c.n<=50);
+  cs.sort((a,b)=>a.n-b.n);if(!cs.length)return'Ver con proveedor';
+  const{p,n}=cs[0];
+  return`${n} env. de ${p>=1000?(p/1000)+' '+(uOut==='g'?'kg':'L'):p+' '+uOut}`;
+}
+function renderCompras(){
+  const el=document.getElementById('compras-content');
+  const sel=document.getElementById('compras-sel');
+  if(!registros.length){el.innerHTML='<div class="empty">Guarda primero una semana de captura.</div>';sel.innerHTML='';return;}
+  sel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <label style="white-space:nowrap;margin:0;font-size:13px">Semana:</label>
+    <select id="sel-sem" onchange="renderCompras()" style="width:auto;min-width:160px">
+      ${registros.map((r,i)=>`<option value="${i}">${r.semana}${r.asesor?' — '+r.asesor:''}</option>`).join('')}
+    </select></div>`;
+  const idx=parseInt(document.getElementById('sel-sem')?.value||0);
+  const reg=registros[idx];const compras=buildCompras(reg);
+  if(!compras.length){el.innerHTML='<div class="empty">Sin productos esta semana.</div>';return;}
+  const filas=compras.map(c=>{
+    const s=getStock(c.nombre);const stockBase=s.cantML||0;const nec=Math.max(0,c.total-stockBase);
+    const porMod={};
+    c.desglose.forEach(d=>{if(!porMod[d.modulo])porMod[d.modulo]=[];porMod[d.modulo].push(`<span class="${d.tipo==='foliar'?'fb':'sb'}">${d.tipo}</span> ${d.dia}${d.fecha?' ('+d.fecha+')':''}: ${d.display}`);});
+    return`<div class="card" style="margin-bottom:.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div><span style="font-weight:700;font-size:15px">${c.nombre}</span><span style="margin-left:8px">${c.usos.map(u=>`<span class="${u==='foliar'?'fb':'sb'}">${u}</span>`).join(' ')}</span></div>
+        <div style="display:flex;gap:20px;text-align:right">
+          <div><div style="font-size:11px;color:#aaa">Total necesario</div><div style="font-weight:600">${fmt(c.total,c.uOut)}</div></div>
+          <div><div style="font-size:11px;color:#aaa">En almacén</div>
+            <div style="font-weight:600;color:${stockBase>=c.total?'#0F6E56':stockBase>0?'#854F0B':'#c00'}">${stockBase>0?fmt(stockBase,c.uOut):'—'}</div></div>
+        </div>
+      </div>
+      <div style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid #f0f0ec">
+        ${nec>0?`<span class="need-yes">Pedir: ${fmt(nec,c.uOut)}</span> <span class="pres-badge" style="margin-left:6px">${sugerirPres(nec,c.uOut)}</span>`:`<span class="need-no">✓ Stock suficiente</span>`}
+      </div>
+      <details style="margin-top:.4rem">
+        <summary style="font-size:12px;color:#aaa;cursor:pointer">Ver desglose por módulo</summary>
+        <div style="margin-top:.4rem">${Object.entries(porMod).map(([mod,dias])=>`<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #f0f0ec"><span style="font-weight:600">${mod}:</span> ${dias.join(' · ')}</div>`).join('')}</div>
+      </details>
+    </div>`;
+  });
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:10px">
+      <div class="card" style="margin:0;flex:1;background:#f5f5f3">
+        <div style="font-size:13px">Semana del <strong>${reg.semana}</strong> · ${reg.modulos.filter(m=>m.superficie>0).length} módulos · ${reg.asesor||''}</div>
+        <div style="font-size:12px;color:#bbb;margin-top:2px">${compras.length} producto(s) agrupados por nombre.</div>
+      </div>
+      <button class="btn-pdf" onclick="exportarPDF()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Exportar PDF
+      </button>
+    </div>
+    ${filas.join('')}`;
+}
+
+// ---- PDF ----
+function exportarPDF(){
+  if(!window.jspdf){alert('Librería PDF cargando.');return;}
+  const{jsPDF}=window.jspdf;
+  const idx=parseInt(document.getElementById('sel-sem')?.value||0);
+  const reg=registros[idx];const compras=buildCompras(reg);if(!compras.length)return;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+  const PW=215.9,ML=15,MR=15;let y=15;
+  const AZUL=[24,95,165],VERDE=[15,110,86],GRIS=[100,100,100],NEGRO=[30,30,30];
+  doc.setFillColor(...AZUL);doc.rect(0,0,PW,28,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('ORDEN DE COMPRA — AGROQUÍMICOS',ML,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text(reg.empresa||cfg.empresa||'',ML,18);
+  doc.text(`Semana del ${reg.semana}   |   ${new Date().toLocaleDateString('es-MX')}`,ML,23);
+  if(reg.asesor)doc.text(`${reg.asesor}${reg.jefe?' · '+reg.jefe:''}`,PW-MR,23,{align:'right'});
+  y=35;
+  doc.setTextColor(...GRIS);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('MÓDULOS',ML,y);y+=3;
+  doc.autoTable({startY:y,margin:{left:ML,right:MR},styles:{fontSize:8,cellPadding:2,textColor:NEGRO},
+    headStyles:{fillColor:[230,230,230],textColor:GRIS,fontStyle:'bold',fontSize:7},
+    head:[['Módulo','Cultivo','Superficie m²','Plantas','Densidad','Caldo L']],
+    body:reg.modulos.filter(m=>m.superficie>0).map(m=>[m.nombre,m.cultivo||'—',m.superficie.toLocaleString(),m.num_plantas.toLocaleString(),m.superficie>0&&m.num_plantas>0?(m.num_plantas/m.superficie).toFixed(2):'—',m.caldoFoliar||200]),
+    alternateRowStyles:{fillColor:[250,250,250]}});
+  y=doc.lastAutoTable.finalY+6;
+  doc.setFillColor(...AZUL);doc.rect(ML,y,PW-ML-MR,6,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('PEDIDO DE PRODUCTOS',ML+2,y+4);y+=8;
+  doc.autoTable({startY:y,margin:{left:ML,right:MR},styles:{fontSize:8,cellPadding:2.5,textColor:NEGRO},
+    headStyles:{fillColor:[230,241,251],textColor:[12,68,124],fontStyle:'bold',fontSize:7.5},
+    head:[['Producto','Uso','Total necesario','En almacén','A pedir','Presentación sugerida']],
+    body:compras.map(c=>{const s=getStock(c.nombre);const stockBase=s.cantML||0;const nec=Math.max(0,c.total-stockBase);
+      return[c.nombre,c.usos.join(' + '),fmt(c.total,c.uOut),stockBase>0?fmt(stockBase,c.uOut):'—',nec>0?fmt(nec,c.uOut):'Stock OK',nec>0?sugerirPres(nec,c.uOut):'—'];}),
+    columnStyles:{0:{cellWidth:45,fontStyle:'bold'},1:{cellWidth:20,halign:'center'},2:{cellWidth:25,halign:'center'},3:{cellWidth:25,halign:'center'},4:{cellWidth:25,halign:'center',fontStyle:'bold'},5:{cellWidth:'auto'}},
+    alternateRowStyles:{fillColor:[250,253,250]},
+    didParseCell:(data)=>{if(data.column.index===4&&data.section==='body')data.cell.styles.textColor=data.cell.raw==='Stock OK'?VERDE:[163,45,45];}});
+  y=doc.lastAutoTable.finalY+5;
+  doc.setDrawColor(220,220,220);doc.line(ML,y,PW-MR,y);y+=5;
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GRIS);
+  doc.text(`Total: ${compras.length} productos · A pedir: ${compras.filter(c=>{const s=getStock(c.nombre);return c.total-(s.cantML||0)>0;}).length}`,ML,y);
+  doc.text('Bitácora Agroquímica — AJVJ',PW-MR,y,{align:'right'});
+  doc.save(`Pedido_${reg.semana.replace(/-/g,'')}.pdf`);
+}
+
+// ---- HISTORIAL ----
+function renderHist(){
+  const el=document.getElementById('hist-list');
+  if(!registros.length){el.innerHTML='<div class="empty">Sin registros aún.</div>';return;}
+  const isAdmin=currentRole==='admin';
+  el.innerHTML=registros.map(r=>`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-weight:700">Semana del ${r.semana}</div>
+          <div style="font-size:12px;color:#888">${r.asesor||''}${r.jefe?' · '+r.jefe:''}${r.guardadoPor?' · Guardado por: '+r.guardadoPor:''}</div>
+          <div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px">
+            ${r.modulos.filter(m=>m.cultivo||m.superficie).map(m=>`<span class="chip">${m.nombre}${m.cultivo?' – '+m.cultivo:''} ${m.superficie?'('+m.superficie.toLocaleString()+' m²)':''}</span>`).join('')}
+          </div>
+        </div>
+        ${isAdmin?`<button class="btn-del" onclick="elimReg(${r.id})">Eliminar</button>`:'<span style="font-size:11px;color:#ccc">🔒</span>'}
+      </div>
+    </div>`).join('');
+}
+function elimReg(id){
+  if(currentRole!=='admin')return;
+  db.ref(`bitacora/registros/${id}`).remove();
+}
+
+function showMain(t,e){
+  currentTab=t;
+  document.querySelectorAll('#main-tabs .tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='config')renderConfigMods();
+  if(t==='inventario')renderStock();
+  if(t==='compras')renderCompras();
+  if(t==='historial')renderHist();
+  if(t==='bdprod')renderBD();
+  if(t==='usuarios')renderUsuarios();
+}
+
+// init fecha
+const hoy=new Date();const lunes=new Date(hoy);
+lunes.setDate(hoy.getDate()-((hoy.getDay()+6)%7));
+document.getElementById('g-semana').value=lunes.toISOString().split('T')[0];
+</script>
+</body>
+</html>
